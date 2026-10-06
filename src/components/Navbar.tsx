@@ -4,22 +4,35 @@
  */
 
 import React from 'react';
-import { ShieldCheck, Network, FileSpreadsheet, Activity, ThermometerSnowflake, Cpu, Presentation, AlertTriangle } from 'lucide-react';
+import { 
+  ShieldCheck, Network, FileSpreadsheet, Activity, ThermometerSnowflake, 
+  Cpu, Presentation, Flame, GitPullRequest, Truck, Sparkles, Award
+} from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   scrapReductionPct: number;
+  cipStatusValid: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, scrapReductionPct }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  activeTab, 
+  setActiveTab, 
+  scrapReductionPct,
+  cipStatusValid 
+}) => {
   const navItems = [
     { id: 'visualizer', label: 'Surgical Recall DAG', icon: Network },
-    { id: 'fda-audit', label: 'FDA 204 Exporter (§ 1.1315)', icon: FileSpreadsheet },
-    { id: 'epcis-supplier', label: 'GS1 EPCIS 2.0 & Supplier KDE', icon: Activity },
-    { id: 'cold-chain', label: 'Cold-Chain IoT (Ratkowsky)', icon: ThermometerSnowflake },
-    { id: 'cstr-rework', label: 'CSTR Fluids & Rework', icon: Cpu },
-    { id: 'benchmarks', label: 'SQL vs Graph & Pitch', icon: Presentation },
+    { id: 'fda-audit', label: 'FDA 204 Exporter', icon: FileSpreadsheet },
+    { id: 'chaos-falsifier', label: 'Adversarial Falsifier', icon: Flame },
+    { id: 'bayesian', label: 'Bayesian Attribution', icon: GitPullRequest },
+    { id: 'clc-retail', label: 'Calculated Lot Code', icon: Truck },
+    { id: 'agentic-ingest', label: 'Agentic Paperwork', icon: Sparkles },
+    { id: 'cold-chain', label: 'Cold-Chain IoT', icon: ThermometerSnowflake },
+    { id: 'cstr-rework', label: 'CSTR & Rework', icon: Cpu },
+    { id: 'benchmarks', label: 'SQL vs Graph', icon: Presentation },
+    { id: 'mock-audit', label: 'FDA 483 Mock Defense', icon: Award },
   ];
 
   return (
@@ -28,20 +41,28 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, scrapRe
       <div className="bg-emerald-950/80 border-b border-emerald-800/40 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-            FSMA RULE 204 READY
+            FSMA RULE 204 (21 CFR § 1.1315)
           </span>
           <span className="text-slate-300 hidden sm:inline">
-            21 CFR Part 1 Subpart S (§ 1.1315) • Compliance Benchmark: Fresh-Cut Ready-to-Eat (RTE) Leafy Greens
+            Production-Grade Reference Engine • Fresh-Cut RTE Romaine Salad Bowls
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>CIP BOUNDARY: ENFORCED ({scrapReductionPct}% SCRAP REDUCTION)</span>
+          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                cipStatusValid ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500 animate-ping'
+              }`}
+            ></span>
+            <span className={cipStatusValid ? 'text-emerald-300' : 'text-rose-400 font-bold'}>
+              {cipStatusValid
+                ? `CIP BARRIER VALID (${scrapReductionPct}% SCRAP REDUCED)`
+                : 'CIP BARRIER BREACHED (DIRTY LINE)'}
+            </span>
           </div>
           <span className="text-slate-500 hidden md:inline">|</span>
           <span className="text-amber-300/90 text-[11px] hidden md:inline">
-            Enforcement Window: July 20, 2028 (Tier-1 Retailers Mandating Now)
+            Enforcement Window: July 20, 2028 (Retailers Mandating Now)
           </span>
         </div>
       </div>
@@ -60,40 +81,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, scrapRe
                   TraceSurg
                 </span>
                 <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
-                  Open-Source FSQA Engine
+                  v2.0 Enterprise Engine
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">
-                GS1 EPCIS 2.0 • DAG Sanitation Pruning • 1-Click FDA Sortable Spreadsheet
+              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                GS1 EPCIS 2.0 • CIP DAG Traversal • Bayesian MAP • 1-Click FDA Exporter
               </p>
             </div>
           </div>
-
-          {/* Nav Items */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                    isActive
-                      ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-950'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
-        {/* Mobile Navigation Scrollbar */}
-        <div className="flex lg:hidden overflow-x-auto pb-2 gap-1 no-scrollbar border-t border-slate-800/80 pt-2">
+        {/* Navigation Tabs Bar */}
+        <nav className="flex overflow-x-auto pb-2 gap-1.5 no-scrollbar border-t border-slate-800/80 pt-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -101,18 +100,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, scrapRe
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-400 hover:text-white bg-slate-800/60'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
+                    : 'text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
               </button>
             );
           })}
-        </div>
+        </nav>
       </div>
     </header>
   );

@@ -6,53 +6,63 @@
 import React, { useState, useMemo } from 'react';
 import { SupplyChainGraphEngine } from './engine/graphEngine';
 import { FDA204Exporter } from './engine/fdaExporter';
-import { FDA_RECALL_BASELINE, CIP_RECORD } from './data/mockSupplyChain';
-import { TraceNode } from './types/traceability';
+import { CIP_RECORD } from './data/mockSupplyChain';
+import { TraceNode, CIPEvent } from './types/traceability';
 import { Navbar } from './components/Navbar';
 import { GraphVisualizer } from './components/GraphVisualizer';
 import { RecallMetricsCard } from './components/RecallMetricsCard';
 import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { FdaAuditCenter } from './components/FdaAuditCenter';
-import { EpcisValidator } from './components/EpcisValidator';
 import { ColdChainMonitor } from './components/ColdChainMonitor';
 import { CstrReworkModule } from './components/CstrReworkModule';
 import { BenchmarkComparison } from './components/BenchmarkComparison';
-import { CheckCircle2, AlertTriangle, ShieldCheck, Download, Sparkles, FileSpreadsheet } from 'lucide-react';
+import { ChaosFalsifier } from './components/ChaosFalsifier';
+import { BayesianAttribution } from './components/BayesianAttribution';
+import { ClcInference } from './components/ClcInference';
+import { AgenticIngestion } from './components/AgenticIngestion';
+import { MockInspection } from './components/MockInspection';
+import { CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('visualizer');
   const [recallMode, setRecallMode] = useState<'surgical' | 'blanket'>('surgical');
+  const [cipRecord, setCipRecord] = useState<CIPEvent>({ ...CIP_RECORD });
   const [cipEnforced, setCipEnforced] = useState<boolean>(true);
   const [selectedNode, setSelectedNode] = useState<TraceNode | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'alert' | 'info' } | null>(null);
 
-  // Initialize graph engine
-  const engine = useMemo(() => new SupplyChainGraphEngine(), []);
+  // Initialize graph engine with current CIP record
+  const engine = useMemo(() => new SupplyChainGraphEngine(undefined, undefined, cipRecord), [cipRecord]);
   const [nodes, setNodes] = useState<TraceNode[]>(() => engine.getNodes());
   const edges = useMemo(() => engine.getEdges(), [engine]);
-  const cipRecord = useMemo(() => engine.getCIPEvent(), [engine]);
 
   // Run initial recall analysis
   const [recallResult, setRecallResult] = useState(() =>
-    engine.runRecallAnalysis('LOT-ROMAINE-101', 'surgical', true)
+    engine.runRecallAnalysis('LOT-ROMAINE-101', recallMode, cipRecord.validated && cipEnforced)
   );
 
   const showToast = (message: string, type: 'success' | 'alert' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => {
       setToast(null);
-    }, 4000);
+    }, 4500);
   };
 
   const handleRunRecall = (lotId: string, mode: 'surgical' | 'blanket', cip: boolean) => {
-    const result = engine.runRecallAnalysis(lotId, mode, cip);
+    const isEffectivelyEnforced = cip && cipRecord.validated;
+    const result = engine.runRecallAnalysis(lotId, mode, isEffectivelyEnforced);
     setRecallResult(result);
     setNodes(engine.getNodes());
 
-    if (mode === 'surgical' && cip) {
+    if (mode === 'surgical' && isEffectivelyEnforced) {
       showToast(
         `Precision Recall computed for ${lotId}: Bounded by Line 1 CIP at 12:00 UTC. ${result.safeUnitsPreserved.toLocaleString()} units preserved (${result.scrapReductionPct}% scrap reduction).`,
         'success'
+      );
+    } else if (mode === 'surgical' && !cipRecord.validated) {
+      showToast(
+        `ADVERSARIAL BREACH DETECTED: Line 1 failed sanitation (ATP: ${cipRecord.atpSwabRLU} RLU). Recall forced to expand to Shift B!`,
+        'alert'
       );
     } else {
       showToast(
@@ -62,11 +72,37 @@ export default function App() {
     }
   };
 
+  const handleUpdateCip = (updated: CIPEvent) => {
+    setCipRecord(updated);
+    const result = engine.runRecallAnalysis(
+      recallResult.suspectLotId,
+      recallMode,
+      updated.validated && cipEnforced
+    );
+    setRecallResult(result);
+    setNodes(engine.getNodes());
+
+    if (!updated.validated) {
+      showToast(
+        `Adversarial attack applied: Line 1 sanitation invalidated. Recalling Shift B!`,
+        'alert'
+      );
+    } else {
+      showToast(`Clean baseline restored: 8 RLU ATP swab verified.`, 'success');
+    }
+  };
+
+  const handleResetCip = () => {
+    setCipRecord({ ...CIP_RECORD });
+    const result = engine.runRecallAnalysis('LOT-ROMAINE-101', 'surgical', true);
+    setRecallResult(result);
+    setNodes(engine.getNodes());
+  };
+
   const handleRunBackTrace = (storeId: string) => {
     const backTraceResult = engine.runBackTrace(storeId);
     showToast(backTraceResult.explanation, 'info');
 
-    // Also highlight the root cause
     const rootNode = nodes.find(n => n.id === backTraceResult.rootCauseLotId);
     if (rootNode) {
       setSelectedNode(rootNode);
@@ -75,7 +111,7 @@ export default function App() {
 
   const handleExportXlsx = () => {
     FDA204Exporter.exportOfficialXlsx();
-    showToast('Official 3-Tab FDA Electronic Sortable Spreadsheet (.xlsx) exported in < 0.05s.', 'success');
+    showToast('Official 4-Tab FDA Electronic Sortable Spreadsheet (.xlsx) exported in < 0.05s.', 'success');
   };
 
   return (
@@ -88,14 +124,14 @@ export default function App() {
               toast.type === 'success'
                 ? 'bg-emerald-950 border-emerald-500 text-emerald-200'
                 : toast.type === 'alert'
-                ? 'bg-red-950 border-red-500 text-red-200'
+                ? 'bg-rose-950 border-rose-500 text-rose-200'
                 : 'bg-cyan-950 border-cyan-500 text-cyan-200'
             }`}
           >
             {toast.type === 'success' ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             ) : toast.type === 'alert' ? (
-              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             ) : (
               <Sparkles className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
             )}
@@ -109,6 +145,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         scrapReductionPct={recallResult.scrapReductionPct}
+        cipStatusValid={cipRecord.validated}
       />
 
       {/* Main Container */}
@@ -116,13 +153,11 @@ export default function App() {
         {/* Tab 1: Visualizer Workspace */}
         {activeTab === 'visualizer' && (
           <div className="space-y-6">
-            {/* Executive Impact Metrics Card */}
             <RecallMetricsCard
               recallResult={recallResult}
               onExportClick={handleExportXlsx}
             />
 
-            {/* Interactive Graph Visualizer */}
             <GraphVisualizer
               nodes={nodes}
               edges={edges}
@@ -143,17 +178,35 @@ export default function App() {
         {/* Tab 2: FDA Audit Center */}
         {activeTab === 'fda-audit' && <FdaAuditCenter />}
 
-        {/* Tab 3: EPCIS 2.0 & Supplier KDE Scorer */}
-        {activeTab === 'epcis-supplier' && <EpcisValidator />}
+        {/* Tab 3: Adversarial Chaos Falsifier */}
+        {activeTab === 'chaos-falsifier' && (
+          <ChaosFalsifier
+            currentCip={cipRecord}
+            onUpdateCip={handleUpdateCip}
+            onResetCip={handleResetCip}
+          />
+        )}
 
-        {/* Tab 4: Cold-Chain Telemetry & Kinetic Spoilage */}
+        {/* Tab 4: Bayesian Upstream Attribution */}
+        {activeTab === 'bayesian' && <BayesianAttribution />}
+
+        {/* Tab 5: Calculated Lot Code Last-Mile */}
+        {activeTab === 'clc-retail' && <ClcInference />}
+
+        {/* Tab 6: Agentic Paperwork Ingestion */}
+        {activeTab === 'agentic-ingest' && <AgenticIngestion />}
+
+        {/* Tab 7: Cold-Chain Telemetry & Kinetic Spoilage */}
         {activeTab === 'cold-chain' && <ColdChainMonitor />}
 
-        {/* Tab 5: CSTR Fluids & Cyclic Rework */}
+        {/* Tab 8: CSTR Fluids & Cyclic Rework */}
         {activeTab === 'cstr-rework' && <CstrReworkModule />}
 
-        {/* Tab 6: SQL vs Graph Benchmarks & Pitch */}
+        {/* Tab 9: SQL vs Graph Benchmarks & Pitch */}
         {activeTab === 'benchmarks' && <BenchmarkComparison />}
+
+        {/* Tab 10: FDA 483 Mock Defense */}
+        {activeTab === 'mock-audit' && <MockInspection />}
       </main>
 
       {/* Slide-over Node Detail Drawer */}
@@ -168,13 +221,14 @@ export default function App() {
       <footer className="bg-slate-900 border-t border-slate-800 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-300">TraceSurg</span>
-            <span>• Open-Source Surgical Recall & Food Traceability Architecture</span>
+            <span className="font-bold text-slate-300">TraceSurg Enterprise</span>
+            <span>• Open-Source Surgical Recall & Food Traceability Platform</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>21 CFR Part 1 Subpart S (§ 1.1300–§ 1.1460)</span>
             <span>GS1 EPCIS 2.0 / CBV 2.0</span>
-            <span>Neo4j APOC Graph DAG</span>
+            <span>Bayesian MAP Inference</span>
+            <span>Neo4j APOC Engine</span>
           </div>
         </div>
       </footer>
