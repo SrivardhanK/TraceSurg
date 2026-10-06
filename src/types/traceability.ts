@@ -18,7 +18,7 @@ export interface TraceNode {
   tier: 'grower' | 'processor' | 'distributor' | 'retail';
   commodity: string;
   quantity: number;
-  unitOfMeasure: 'LBS' | 'CASES' | 'PALLETS' | 'BOWLS';
+  unitOfMeasure: 'LBS' | 'CASES' | 'PALLETS' | 'BOWLS' | 'PACKS' | 'JARS' | 'TUBS' | 'WHEELS';
   timestamp: string; // ISO 8601 UTC
   status: NodeStatus;
   tlcSourceGln?: string;

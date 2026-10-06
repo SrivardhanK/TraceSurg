@@ -4,31 +4,42 @@
  */
 
 import * as XLSX from 'xlsx';
-import { RECEIVING_KDES, TRANSFORMATION_KDES, SHIPPING_KDES, FDA_RECALL_BASELINE, CIP_RECORD } from '../data/mockSupplyChain';
+import { RECEIVING_KDES, TRANSFORMATION_KDES, SHIPPING_KDES, FDA_RECALL_BASELINE, CIP_RECORD, CommodityScenario } from '../data/mockSupplyChain';
+import { ReceivingKDE, TransformationKDE, ShippingKDE, CIPEvent } from '../types/traceability';
 
 export interface FDAExportOptions {
   suspectLotId?: string;
   filterRecalledOnly?: boolean;
+  scenario?: CommodityScenario;
 }
 
 export class FDA204Exporter {
   /**
-   * Generates and downloads the official 3-tab FDA Electronic Sortable Spreadsheet (.xlsx)
+   * Generates and downloads the official 4-tab FDA Electronic Sortable Spreadsheet (.xlsx)
    * conforming to 21 CFR § 1.1315, § 1.1335, § 1.1340, and § 1.1345.
    */
-  public static exportOfficialXlsx(filename: string = 'FDA_FSMA204_Electronic_Sortable_Spreadsheet.xlsx') {
+  public static exportOfficialXlsx(
+    filename: string = 'FDA_FSMA204_Electronic_Sortable_Spreadsheet.xlsx',
+    customScenario?: CommodityScenario
+  ) {
     const wb = XLSX.utils.book_new();
+
+    const baseline = customScenario ? customScenario.openFdaBaseline : FDA_RECALL_BASELINE;
+    const cip = customScenario ? customScenario.cipRecord : CIP_RECORD;
+    const recKdes = customScenario ? customScenario.receivingKdes : RECEIVING_KDES;
+    const transKdes = customScenario ? customScenario.transformationKdes : TRANSFORMATION_KDES;
+    const shipKdes = customScenario ? customScenario.shippingKdes : SHIPPING_KDES;
 
     // 1. Audit Summary Tab
     const summaryData = [
       { Parameter: 'Regulatory Citation', Value: '21 CFR Part 1 Subpart S (§ 1.1315)' },
       { Parameter: 'Compliance Mandate', Value: 'FDA Food Traceability Rule (FSMA 204)' },
       { Parameter: 'Enforcement Deadline', Value: 'July 20, 2028 (Tier-1 Retailers Enforcing Now)' },
-      { Parameter: 'Commodity Under Investigation', Value: 'Fresh-Cut Ready-to-Eat (RTE) Romaine Salad Bowls (FTL)' },
-      { Parameter: 'Recall Reference Event', Value: FDA_RECALL_BASELINE.recallNumber },
-      { Parameter: 'Pathogen Adulterant', Value: 'Listeria monocytogenes (CFU > 0 Zero Tolerance)' },
-      { Parameter: 'Suspect Root-Cause Lot (TLC)', Value: FDA_RECALL_BASELINE.suspectLotId },
-      { Parameter: 'Clean-in-Place (CIP) Validation', Value: 'VERIFIED: 12:00:00 UTC (ATP 8 RLU, PAA 210 ppm)' },
+      { Parameter: 'Commodity Under Investigation', Value: customScenario?.commodityType || 'Fresh-Cut Ready-to-Eat (RTE) Romaine Salad Bowls (FTL)' },
+      { Parameter: 'Recall Reference Event', Value: baseline.recallNumber },
+      { Parameter: 'Pathogen Adulterant', Value: customScenario?.hazardPathogen || 'Listeria monocytogenes (CFU > 0 Zero Tolerance)' },
+      { Parameter: 'Suspect Root-Cause Lot (TLC)', Value: baseline.suspectLotId },
+      { Parameter: 'Clean-in-Place (CIP) Validation', Value: `VERIFIED: ${cip.endTime} (ATP ${cip.atpSwabRLU} RLU, ${cip.chemicalPpm} PPM)` },
       { Parameter: 'Query Generation Turnaround', Value: '< 0.05 seconds (Sub-second vs 24-hr mandate)' },
       { Parameter: 'Export Timestamp UTC', Value: new Date().toISOString() }
     ];
@@ -36,7 +47,7 @@ export class FDA204Exporter {
     XLSX.utils.book_append_sheet(wb, wsSummary, 'FDA Audit Summary');
 
     // 2. Tab 1: Receiving KDEs (21 CFR § 1.1335)
-    const receivingRows = RECEIVING_KDES.map(r => ({
+    const receivingRows = recKdes.map(r => ({
       'Traceability Lot Code (TLC)': r.tlc,
       'Commodity Description': r.commodity,
       'Quantity Received': r.quantity,
@@ -55,7 +66,7 @@ export class FDA204Exporter {
     XLSX.utils.book_append_sheet(wb, wsReceiving, 'Receiving KDEs (§ 1.1335)');
 
     // 3. Tab 2: Transformation KDEs (21 CFR § 1.1340)
-    const transformationRows = TRANSFORMATION_KDES.map(t => ({
+    const transformationRows = transKdes.map(t => ({
       'Transformation Event ID': t.transformationEventId,
       'Facility GLN': t.facilityGln,
       'Facility Name': t.facilityName,
@@ -76,7 +87,7 @@ export class FDA204Exporter {
     XLSX.utils.book_append_sheet(wb, wsTransformation, 'Transform KDEs (§ 1.1340)');
 
     // 4. Tab 3: Shipping KDEs (21 CFR § 1.1345)
-    const shippingRows = SHIPPING_KDES.map(s => ({
+    const shippingRows = shipKdes.map(s => ({
       'Shipped TLC': s.shippedTlc,
       'Commodity Description': s.commodity,
       'Quantity Shipped': s.quantityShipped,
@@ -96,18 +107,18 @@ export class FDA204Exporter {
 
     // 5. Tab 4: Clean-in-Place (CIP) Validation Record
     const cipData = [
-      { Metric: 'Sanitation Event ID', Value: CIP_RECORD.id },
-      { Metric: 'Line ID', Value: CIP_RECORD.lineId },
-      { Metric: 'Facility GLN', Value: CIP_RECORD.facilityGln },
-      { Metric: 'Sanitation Start UTC', Value: CIP_RECORD.startTime },
-      { Metric: 'Sanitation Completion UTC', Value: CIP_RECORD.endTime },
-      { Metric: 'Sanitation Protocol', Value: CIP_RECORD.protocol },
-      { Metric: 'Chemical Titration', Value: `${CIP_RECORD.chemicalPpm} PPM (${CIP_RECORD.chemicalUsed})` },
-      { Metric: 'Wash Water Temperature', Value: `${CIP_RECORD.washTemperatureC}°C` },
-      { Metric: 'ATP Bioluminescence Swab', Value: `${CIP_RECORD.atpSwabRLU} RLU (PASS: < 25 RLU)` },
-      { Metric: 'Certified Operator ID', Value: CIP_RECORD.operatorId },
-      { Metric: 'Regulatory Boundary Verdict', Value: 'HARD STOP: Cross-contamination path severed for Shift B' },
-      { Metric: 'QA Director Notes', Value: CIP_RECORD.notes }
+      { Metric: 'Sanitation Event ID', Value: cip.id },
+      { Metric: 'Line ID', Value: cip.lineId },
+      { Metric: 'Facility GLN', Value: cip.facilityGln },
+      { Metric: 'Sanitation Start UTC', Value: cip.startTime },
+      { Metric: 'Sanitation Completion UTC', Value: cip.endTime },
+      { Metric: 'Sanitation Protocol', Value: cip.protocol },
+      { Metric: 'Chemical Titration', Value: `${cip.chemicalPpm} PPM (${cip.chemicalUsed})` },
+      { Metric: 'Wash Water Temperature', Value: `${cip.washTemperatureC}°C` },
+      { Metric: 'ATP Bioluminescence Swab', Value: `${cip.atpSwabRLU} RLU (PASS: < 25 RLU)` },
+      { Metric: 'Certified Operator ID', Value: cip.operatorId },
+      { Metric: 'Regulatory Boundary Verdict', Value: 'HARD STOP: Cross-contamination path severed for subsequent shift' },
+      { Metric: 'QA Director Notes', Value: cip.notes }
     ];
     const wsCip = XLSX.utils.json_to_sheet(cipData);
     XLSX.utils.book_append_sheet(wb, wsCip, 'Sanitation CIP Audit');

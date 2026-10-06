@@ -6,7 +6,7 @@
 import React from 'react';
 import { 
   ShieldCheck, Network, FileSpreadsheet, Activity, ThermometerSnowflake, 
-  Cpu, Presentation, Flame, GitPullRequest, Truck, Sparkles, Award
+  Cpu, Presentation, Flame, GitPullRequest, Truck, Sparkles, Award, BookOpen
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,6 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const navItems = [
     { id: 'visualizer', label: 'Surgical Recall DAG', icon: Network },
+    { id: 'documentation', label: 'Architecture & Runbook', icon: BookOpen },
     { id: 'fda-audit', label: 'FDA 204 Exporter', icon: FileSpreadsheet },
     { id: 'chaos-falsifier', label: 'Adversarial Falsifier', icon: Flame },
     { id: 'bayesian', label: 'Bayesian Attribution', icon: GitPullRequest },
@@ -81,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   TraceSurg
                 </span>
                 <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
-                  v2.0 Enterprise Engine
+                  Enterprise Traceability Engine
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-medium hidden sm:block">

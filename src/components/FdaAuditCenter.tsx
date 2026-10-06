@@ -4,16 +4,28 @@
  */
 
 import React, { useState } from 'react';
-import { RECEIVING_KDES, TRANSFORMATION_KDES, SHIPPING_KDES, CIP_RECORD, FDA_RECALL_BASELINE } from '../data/mockSupplyChain';
+import { RECEIVING_KDES, TRANSFORMATION_KDES, SHIPPING_KDES, CIP_RECORD, FDA_RECALL_BASELINE, CommodityScenario } from '../data/mockSupplyChain';
 import { FDA204Exporter } from '../engine/fdaExporter';
 import { FileSpreadsheet, Download, CheckCircle, ShieldCheck, FileText, Search, ArrowDownUp, Info } from 'lucide-react';
 
-export const FdaAuditCenter: React.FC = () => {
+interface FdaAuditCenterProps {
+  scenario?: CommodityScenario;
+}
+
+export const FdaAuditCenter: React.FC<FdaAuditCenterProps> = ({ scenario }) => {
   const [activeSubTab, setActiveSubTab] = useState<'receiving' | 'transformation' | 'shipping' | 'plan' | 'cip'>('receiving');
   const [searchFilter, setSearchFilter] = useState('');
 
+  const recKdes = scenario ? scenario.receivingKdes : RECEIVING_KDES;
+  const transKdes = scenario ? scenario.transformationKdes : TRANSFORMATION_KDES;
+  const shipKdes = scenario ? scenario.shippingKdes : SHIPPING_KDES;
+  const cip = scenario ? scenario.cipRecord : CIP_RECORD;
+
   const handleDownloadXlsx = () => {
-    FDA204Exporter.exportOfficialXlsx('FDA_FSMA204_PacificCoastFreshFoods_SaladRecall.xlsx');
+    const filename = scenario
+      ? `FDA_FSMA204_${scenario.id.toUpperCase()}_Recall_Report.xlsx`
+      : 'FDA_FSMA204_PacificCoastFreshFoods_SaladRecall.xlsx';
+    FDA204Exporter.exportOfficialXlsx(filename, scenario);
   };
 
   const writtenPlanText = FDA204Exporter.generateWrittenTraceabilityPlan();
@@ -62,7 +74,7 @@ export const FdaAuditCenter: React.FC = () => {
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>Tab 1: Receiving KDEs (§ 1.1335)</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-              {RECEIVING_KDES.length}
+              {recKdes.length}
             </span>
           </button>
 
@@ -77,7 +89,7 @@ export const FdaAuditCenter: React.FC = () => {
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>Tab 2: Transformation KDEs (§ 1.1340)</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-              {TRANSFORMATION_KDES.length}
+              {transKdes.length}
             </span>
           </button>
 
@@ -92,7 +104,7 @@ export const FdaAuditCenter: React.FC = () => {
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>Tab 3: Shipping KDEs (§ 1.1345)</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-              {SHIPPING_KDES.length}
+              {shipKdes.length}
             </span>
           </button>
 
@@ -159,7 +171,7 @@ export const FdaAuditCenter: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                {RECEIVING_KDES.filter(r => 
+                {recKdes.filter(r => 
                   r.tlc.toLowerCase().includes(searchFilter.toLowerCase()) ||
                   r.tlcSourceName.toLowerCase().includes(searchFilter.toLowerCase()) ||
                   r.tlcSourceRefDocNumber.toLowerCase().includes(searchFilter.toLowerCase())
@@ -213,7 +225,7 @@ export const FdaAuditCenter: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                {TRANSFORMATION_KDES.filter(t =>
+                {transKdes.filter(t =>
                   t.inputTlc.toLowerCase().includes(searchFilter.toLowerCase()) ||
                   t.outputTlc.toLowerCase().includes(searchFilter.toLowerCase())
                 ).map((row, idx) => (
@@ -269,7 +281,7 @@ export const FdaAuditCenter: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                {SHIPPING_KDES.filter(s =>
+                {shipKdes.filter(s =>
                   s.shippedTlc.toLowerCase().includes(searchFilter.toLowerCase()) ||
                   s.consigneeName.toLowerCase().includes(searchFilter.toLowerCase()) ||
                   s.billOfLading.toLowerCase().includes(searchFilter.toLowerCase())
@@ -316,17 +328,17 @@ export const FdaAuditCenter: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg">
               <span className="text-xs text-slate-400">Chemical Concentration</span>
-              <div className="text-lg font-bold text-white mt-1">{CIP_RECORD.chemicalPpm} PPM</div>
-              <span className="text-[11px] text-cyan-300">{CIP_RECORD.chemicalUsed}</span>
+              <div className="text-lg font-bold text-white mt-1">{cip.chemicalPpm} PPM</div>
+              <span className="text-[11px] text-cyan-300">{cip.chemicalUsed}</span>
             </div>
             <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg">
               <span className="text-xs text-slate-400">ATP Bioluminescence Swab</span>
-              <div className="text-lg font-bold text-emerald-400 mt-1">{CIP_RECORD.atpSwabRLU} RLU</div>
+              <div className="text-lg font-bold text-emerald-400 mt-1">{cip.atpSwabRLU} RLU</div>
               <span className="text-[11px] text-slate-400">FDA / GFSI Pass Boundary: &lt; 25 RLU</span>
             </div>
             <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg">
               <span className="text-xs text-slate-400">Wash Water Temperature</span>
-              <div className="text-lg font-bold text-white mt-1">{CIP_RECORD.washTemperatureC}°C</div>
+              <div className="text-lg font-bold text-white mt-1">{cip.washTemperatureC}°C</div>
               <span className="text-[11px] text-slate-400">Caustic alkaline thermal flush</span>
             </div>
           </div>
@@ -334,24 +346,24 @@ export const FdaAuditCenter: React.FC = () => {
           <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg text-xs space-y-2">
             <div className="flex justify-between border-b border-slate-800 pb-1.5">
               <span className="text-slate-400">Sanitation Event ID:</span>
-              <span className="font-mono text-white">{CIP_RECORD.id}</span>
+              <span className="font-mono text-white">{cip.id}</span>
             </div>
             <div className="flex justify-between border-b border-slate-800 pb-1.5">
               <span className="text-slate-400">Equipment Line:</span>
-              <span className="font-mono text-cyan-300">{CIP_RECORD.lineId}</span>
+              <span className="font-mono text-cyan-300">{cip.lineId}</span>
             </div>
             <div className="flex justify-between border-b border-slate-800 pb-1.5">
               <span className="text-slate-400">Execution Window:</span>
-              <span className="font-mono text-white">{CIP_RECORD.startTime} to {CIP_RECORD.endTime}</span>
+              <span className="font-mono text-white">{cip.startTime} to {cip.endTime}</span>
             </div>
             <div className="flex justify-between border-b border-slate-800 pb-1.5">
               <span className="text-slate-400">Certified Sanitation Operator:</span>
-              <span className="font-mono text-white">{CIP_RECORD.operatorId}</span>
+              <span className="font-mono text-white">{cip.operatorId}</span>
             </div>
             <div className="pt-2">
               <span className="text-slate-400 block mb-1">Director of Sanitation Sign-off Notes:</span>
               <p className="text-slate-200 bg-slate-900 p-2.5 rounded border border-slate-800 leading-relaxed font-mono text-[11px]">
-                {CIP_RECORD.notes}
+                {cip.notes}
               </p>
             </div>
           </div>

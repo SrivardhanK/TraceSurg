@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { SupplyChainGraphEngine } from './engine/graphEngine';
 import { FDA204Exporter } from './engine/fdaExporter';
-import { CIP_RECORD } from './data/mockSupplyChain';
+import { CIP_RECORD, ALL_SCENARIOS, SCENARIO_ROMAINE, CommodityScenario } from './data/mockSupplyChain';
 import { TraceNode, CIPEvent } from './types/traceability';
 import { Navbar } from './components/Navbar';
 import { GraphVisualizer } from './components/GraphVisualizer';
@@ -21,24 +21,34 @@ import { BayesianAttribution } from './components/BayesianAttribution';
 import { ClcInference } from './components/ClcInference';
 import { AgenticIngestion } from './components/AgenticIngestion';
 import { MockInspection } from './components/MockInspection';
+import { DocumentationCenter } from './components/DocumentationCenter';
 import { CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('visualizer');
+  const [currentScenarioId, setCurrentScenarioId] = useState<string>('romaine-salad');
   const [recallMode, setRecallMode] = useState<'surgical' | 'blanket'>('surgical');
-  const [cipRecord, setCipRecord] = useState<CIPEvent>({ ...CIP_RECORD });
+
+  const currentScenario = useMemo(() => {
+    return ALL_SCENARIOS[currentScenarioId] || SCENARIO_ROMAINE;
+  }, [currentScenarioId]);
+
+  const [cipRecord, setCipRecord] = useState<CIPEvent>({ ...currentScenario.cipRecord });
   const [cipEnforced, setCipEnforced] = useState<boolean>(true);
   const [selectedNode, setSelectedNode] = useState<TraceNode | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'alert' | 'info' } | null>(null);
 
-  // Initialize graph engine with current CIP record
-  const engine = useMemo(() => new SupplyChainGraphEngine(undefined, undefined, cipRecord), [cipRecord]);
+  // Initialize graph engine with current scenario and CIP record
+  const engine = useMemo(() => {
+    return new SupplyChainGraphEngine(currentScenario.nodes, currentScenario.edges, cipRecord);
+  }, [currentScenario, cipRecord]);
+
   const [nodes, setNodes] = useState<TraceNode[]>(() => engine.getNodes());
   const edges = useMemo(() => engine.getEdges(), [engine]);
 
   // Run initial recall analysis
   const [recallResult, setRecallResult] = useState(() =>
-    engine.runRecallAnalysis('LOT-ROMAINE-101', recallMode, cipRecord.validated && cipEnforced)
+    engine.runRecallAnalysis(currentScenario.openFdaBaseline.suspectLotId, recallMode, cipRecord.validated && cipEnforced)
   );
 
   const showToast = (message: string, type: 'success' | 'alert' | 'info' = 'success') => {
@@ -46,6 +56,22 @@ export default function App() {
     setTimeout(() => {
       setToast(null);
     }, 4500);
+  };
+
+  const handleSelectScenario = (scenarioId: string) => {
+    const sc = ALL_SCENARIOS[scenarioId] || SCENARIO_ROMAINE;
+    setCurrentScenarioId(scenarioId);
+    setCipRecord({ ...sc.cipRecord });
+    const newEngine = new SupplyChainGraphEngine(sc.nodes, sc.edges, sc.cipRecord);
+    const result = newEngine.runRecallAnalysis(
+      sc.openFdaBaseline.suspectLotId,
+      recallMode,
+      sc.cipRecord.validated && cipEnforced
+    );
+    setRecallResult(result);
+    setNodes(newEngine.getNodes());
+    setSelectedNode(null);
+    showToast(`Loaded scenario: ${sc.name} • ${sc.hazardPathogen}`, 'info');
   };
 
   const handleRunRecall = (lotId: string, mode: 'surgical' | 'blanket', cip: boolean) => {
@@ -56,12 +82,12 @@ export default function App() {
 
     if (mode === 'surgical' && isEffectivelyEnforced) {
       showToast(
-        `Precision Recall computed for ${lotId}: Bounded by Line 1 CIP at 12:00 UTC. ${result.safeUnitsPreserved.toLocaleString()} units preserved (${result.scrapReductionPct}% scrap reduction).`,
+        `Precision Recall computed for ${lotId}: Bounded by Line CIP. ${result.safeUnitsPreserved.toLocaleString()} units preserved (${result.scrapReductionPct}% scrap reduction).`,
         'success'
       );
     } else if (mode === 'surgical' && !cipRecord.validated) {
       showToast(
-        `ADVERSARIAL BREACH DETECTED: Line 1 failed sanitation (ATP: ${cipRecord.atpSwabRLU} RLU). Recall forced to expand to Shift B!`,
+        `ADVERSARIAL BREACH DETECTED: Line failed sanitation (ATP: ${cipRecord.atpSwabRLU} RLU). Recall forced to expand to Shift B!`,
         'alert'
       );
     } else {
@@ -84,17 +110,17 @@ export default function App() {
 
     if (!updated.validated) {
       showToast(
-        `Adversarial attack applied: Line 1 sanitation invalidated. Recalling Shift B!`,
+        `Adversarial attack applied: Line sanitation invalidated. Recalling Shift B!`,
         'alert'
       );
     } else {
-      showToast(`Clean baseline restored: 8 RLU ATP swab verified.`, 'success');
+      showToast(`Clean baseline restored: ${updated.atpSwabRLU} RLU ATP swab verified.`, 'success');
     }
   };
 
   const handleResetCip = () => {
-    setCipRecord({ ...CIP_RECORD });
-    const result = engine.runRecallAnalysis('LOT-ROMAINE-101', 'surgical', true);
+    setCipRecord({ ...currentScenario.cipRecord });
+    const result = engine.runRecallAnalysis(currentScenario.openFdaBaseline.suspectLotId, 'surgical', true);
     setRecallResult(result);
     setNodes(engine.getNodes());
   };
@@ -110,8 +136,11 @@ export default function App() {
   };
 
   const handleExportXlsx = () => {
-    FDA204Exporter.exportOfficialXlsx();
-    showToast('Official 4-Tab FDA Electronic Sortable Spreadsheet (.xlsx) exported in < 0.05s.', 'success');
+    FDA204Exporter.exportOfficialXlsx(
+      `FDA_FSMA204_${currentScenario.id.toUpperCase()}_Recall_Report.xlsx`,
+      currentScenario
+    );
+    showToast(`Official 4-Tab FDA Electronic Sortable Spreadsheet for ${currentScenario.name} exported in < 0.05s.`, 'success');
   };
 
   return (
@@ -171,14 +200,19 @@ export default function App() {
               setRecallMode={setRecallMode}
               cipEnforced={cipEnforced}
               setCipEnforced={setCipEnforced}
+              currentScenarioId={currentScenarioId}
+              onSelectScenario={handleSelectScenario}
             />
           </div>
         )}
 
-        {/* Tab 2: FDA Audit Center */}
-        {activeTab === 'fda-audit' && <FdaAuditCenter />}
+        {/* Tab 2: Documentation & Systems Architecture Dossier */}
+        {activeTab === 'documentation' && <DocumentationCenter />}
 
-        {/* Tab 3: Adversarial Chaos Falsifier */}
+        {/* Tab 3: FDA Audit Center */}
+        {activeTab === 'fda-audit' && <FdaAuditCenter scenario={currentScenario} />}
+
+        {/* Tab 4: Adversarial Chaos Falsifier */}
         {activeTab === 'chaos-falsifier' && (
           <ChaosFalsifier
             currentCip={cipRecord}
@@ -187,25 +221,25 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Bayesian Upstream Attribution */}
+        {/* Tab 5: Bayesian Upstream Attribution */}
         {activeTab === 'bayesian' && <BayesianAttribution />}
 
-        {/* Tab 5: Calculated Lot Code Last-Mile */}
+        {/* Tab 6: Calculated Lot Code Last-Mile */}
         {activeTab === 'clc-retail' && <ClcInference />}
 
-        {/* Tab 6: Agentic Paperwork Ingestion */}
+        {/* Tab 7: Agentic Paperwork Ingestion */}
         {activeTab === 'agentic-ingest' && <AgenticIngestion />}
 
-        {/* Tab 7: Cold-Chain Telemetry & Kinetic Spoilage */}
+        {/* Tab 8: Cold-Chain Telemetry & Kinetic Spoilage */}
         {activeTab === 'cold-chain' && <ColdChainMonitor />}
 
-        {/* Tab 8: CSTR Fluids & Cyclic Rework */}
+        {/* Tab 9: CSTR Fluids & Cyclic Rework */}
         {activeTab === 'cstr-rework' && <CstrReworkModule />}
 
-        {/* Tab 9: SQL vs Graph Benchmarks & Pitch */}
+        {/* Tab 10: SQL vs Graph Benchmarks & Pitch */}
         {activeTab === 'benchmarks' && <BenchmarkComparison />}
 
-        {/* Tab 10: FDA 483 Mock Defense */}
+        {/* Tab 11: FDA 483 Mock Defense */}
         {activeTab === 'mock-audit' && <MockInspection />}
       </main>
 

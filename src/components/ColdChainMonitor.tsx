@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { SpoilageEngine } from '../engine/spoilageEngine';
-import { ThermometerSnowflake, AlertTriangle, ShieldCheck, Play, RotateCcw, Activity, Info, Check } from 'lucide-react';
+import { ThermometerSnowflake, AlertTriangle, ShieldCheck, Play, RotateCcw, Activity, Info, Check, Calculator } from 'lucide-react';
 
 export const ColdChainMonitor: React.FC = () => {
   const [excursionStart, setExcursionStart] = useState<number>(6);
@@ -18,6 +18,17 @@ export const ColdChainMonitor: React.FC = () => {
 
   const { logs, summary } = simulation;
 
+  // Live Math Deconstruction for Ratkowsky:
+  // r = [0.055 * (T - (-1.18))]^2
+  const T_min = -1.18;
+  const b = 0.055;
+  const T_base = 4.0;
+  const r_base = Math.pow(b * (T_base - T_min), 2); // 0.0811
+  const deltaT = peakTemp - T_min;
+  const bracket = b * deltaT;
+  const r_peak = Math.pow(bracket, 2);
+  const relativeMultiplier = (r_peak / r_base).toFixed(1);
+
   return (
     <div className="space-y-5">
       {/* Top Banner */}
@@ -28,7 +39,7 @@ export const ColdChainMonitor: React.FC = () => {
               PHASE 2 IOT PREDICTIVE ENGINE
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Ratkowsky Square-Root Kinetics • Automated Dock Quarantine
+              Ratkowsky Kinetic Growth • Thermal Degree-Hours • Pre-Dock Quarantine
             </span>
           </div>
           <h2 className="text-xl font-bold text-white mt-1">
@@ -166,7 +177,58 @@ export const ColdChainMonitor: React.FC = () => {
         </div>
       </div>
 
-      {/* SVG Telemetry Curve & Safety Boundary Chart */}
+      {/* DECONSTRUCTED LIVE FORMULA ARITHMETIC CARD */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+            <Calculator className="w-4 h-4" />
+            <span>Under The Hood: Live Deconstructed Ratkowsky Kinetic Arithmetic</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500">USDA-ARS Microbiological Model</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Formula 1: Ratkowsky */}
+          <div className="p-3.5 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+            <span className="text-amber-300 font-bold block">1. Ratkowsky Square-Root Equation:</span>
+            <div className="font-mono text-slate-300 bg-slate-900 p-2 rounded border border-slate-800 text-[11px]">
+              r = [ b · (T - T_min) ]²
+            </div>
+            <div className="text-slate-400 text-[11px] space-y-1">
+              <div>Parameters for <em>Listeria monocytogenes</em>:</div>
+              <div>• Minimum theoretical growth temp (T_min): <span className="font-mono text-white">-1.18°C</span></div>
+              <div>• Kinetic rate coefficient (b): <span className="font-mono text-white">0.055 °C⁻¹·h⁻⁰·⁵</span></div>
+            </div>
+            <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-cyan-300">
+              Live substitution at peak {peakTemp}°C:<br />
+              r = [ 0.055 · ({peakTemp} - (-1.18)) ]² = [ 0.055 · {deltaT.toFixed(2)} ]² = {r_peak.toFixed(4)} h⁻¹<br />
+              <span className="text-amber-400 font-bold">Relative to safe 4°C: {relativeMultiplier}x pathogen reproduction speed!</span>
+            </div>
+          </div>
+
+          {/* Formula 2: Thermal Degree Hours */}
+          <div className="p-3.5 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+            <span className="text-emerald-300 font-bold block">2. Thermal Abuse Degree-Hours Integral:</span>
+            <div className="font-mono text-slate-300 bg-slate-900 p-2 rounded border border-slate-800 text-[11px]">
+              Degree-Hours = ∫ max(0, T(t) - 4.0°C) dt
+            </div>
+            <div className="text-slate-400 text-[11px] space-y-1">
+              <div>HACCP Cold-Chain Action Rule:</div>
+              <div>• Baseline cold threshold: <span className="font-mono text-white">4.0°C</span></div>
+              <div>• Maximum allowable critical degree-hours: <span className="font-mono text-white">15.0 °C·h</span></div>
+            </div>
+            <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-cyan-300">
+              Integrated area under curve over 24 hours:<br />
+              Cumulative Score: <span className="text-white font-bold">{summary.totalDegreeHours} °C·h</span><br />
+              <span className={summary.quarantineTriggered ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>
+                {summary.quarantineTriggered ? 'BREACH: Exceeded 15.0 °C·h limit! Auto-quarantine enforced.' : 'WITHIN LIMIT: Safe for intake.'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SVG Telemetry Curve Chart */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
           <div>
@@ -212,11 +274,10 @@ export const ColdChainMonitor: React.FC = () => {
             {/* 12°C Limit (Y = 108) */}
             <line x1="50" y1="108" x2="780" y2="108" stroke="#ef4444" strokeDasharray="3 3" strokeWidth="1.5" />
 
-            {/* Path mapping: X: 50 to 780 (24 hrs), Y: 220 (0°C) to 20 (20°C) */}
+            {/* Path mapping */}
             {(() => {
               const points = logs.map((log) => {
                 const x = 50 + (log.timeIndexHours / 24) * 730;
-                // mapping 0°C to 240, 20°C to 20
                 const y = 240 - (log.temperatureC / 20) * 220;
                 return `${x},${y}`;
               });

@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { AgenticPaperworkParser, ParsedKdeResult } from '../engine/agenticParser';
-import { FileText, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Code2, Copy, Check } from 'lucide-react';
+import { FileText, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Code2, Copy, Check, Calculator } from 'lucide-react';
 
 export const AgenticIngestion: React.FC = () => {
   const SAMPLE_TICKET_1 = `DELIVERY MANIFEST / HARVEST RECEIPT
@@ -56,6 +56,14 @@ Note: Driver forgot BOL paper copy. Will email later.`;
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Mod-10 Arithmetic step decomposition
+  const digits12 = parsedResult.rawGln.slice(0, 12).split('');
+  const weights = [1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3];
+  const products = digits12.map((d, i) => parseInt(d, 10) * weights[i]);
+  const sum = products.reduce((acc, p) => acc + p, 0);
+  const mod = sum % 10;
+  const expectedCheck = mod === 0 ? 0 : 10 - mod;
 
   return (
     <div className="space-y-5">
@@ -129,7 +137,7 @@ Note: Driver forgot BOL paper copy. Will email later.`;
           </div>
 
           <textarea
-            rows={14}
+            rows={12}
             value={inputText}
             onChange={(e) => handleParse(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 font-mono focus:outline-none focus:border-teal-500 leading-relaxed resize-none"
@@ -184,9 +192,62 @@ Note: Driver forgot BOL paper copy. Will email later.`;
           </div>
 
           {/* JSON-LD Preview */}
-          <pre className="bg-slate-950 p-3 rounded-lg text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800 max-h-60">
+          <pre className="bg-slate-950 p-3 rounded-lg text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800 max-h-52">
             {JSON.stringify(parsedResult.epcisJsonLd, null, 2)}
           </pre>
+        </div>
+      </div>
+
+      {/* DECONSTRUCTED GS1 MODULO-10 ARITHMETIC CARD */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="flex items-center gap-2 text-teal-400 font-bold text-xs uppercase tracking-wider">
+            <Calculator className="w-4 h-4" />
+            <span>Under The Hood: Live GS1 Modulo-10 Check-Digit Arithmetic Breakdown</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500">ISO/IEC 15420 Barcode Standard</span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          The 13th digit of any GS1 Global Location Number (GLN) is an authenticated mathematical check-digit calculated using alternating weights (1, 3, 1, 3...):
+        </p>
+
+        {/* Step-by-Step Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-center border border-slate-800 rounded-lg">
+            <thead className="bg-slate-950 text-slate-400 text-[11px]">
+              <tr>
+                <th className="p-1.5 border-r border-slate-800">Position</th>
+                {digits12.map((_, i) => (
+                  <th key={i} className="p-1.5 font-mono">P{i + 1}</th>
+                ))}
+                <th className="p-1.5 text-teal-300 border-l border-slate-800">Sum</th>
+                <th className="p-1.5 text-emerald-400">10 - (Sum mod 10)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800 text-slate-300 font-mono text-[11px]">
+              <tr>
+                <td className="p-1.5 font-semibold text-slate-400 border-r border-slate-800">Digit (d)</td>
+                {digits12.map((d, i) => (
+                  <td key={i} className="p-1.5 text-white font-bold">{d}</td>
+                ))}
+                <td className="p-1.5 font-bold text-teal-300 border-l border-slate-800">{sum}</td>
+                <td className="p-1.5 font-bold text-emerald-400 text-sm">{expectedCheck}</td>
+              </tr>
+              <tr className="bg-slate-950/50 text-slate-500 text-[10px]">
+                <td className="p-1.5 border-r border-slate-800">Weight (w)</td>
+                {weights.map((w, i) => (
+                  <td key={i} className="p-1.5">×{w}</td>
+                ))}
+                <td className="p-1.5 border-l border-slate-800">mod 10 = {mod}</td>
+                <td className="p-1.5 text-emerald-300">Target Check Digit</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="text-[11px] text-slate-400 font-mono pt-1">
+          Formula: <span className="text-white">Check Digit = (10 - (∑ (dᵢ × wᵢ) mod 10)) mod 10</span> &rarr; Computed: <span className="text-emerald-400 font-bold">{expectedCheck}</span> | Provided in Paperwork: <span className="text-amber-300 font-bold">{parsedResult.rawGln[12] || 'N/A'}</span> &rarr; Verdict: <span className={parsedResult.glnCheckDigitValid ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{parsedResult.glnCheckDigitValid ? 'PASSED DOCK CHECK' : 'MISMATCH (REJECT PAPERWORK)'}</span>
         </div>
       </div>
     </div>
