@@ -1,0 +1,6 @@
+{
+  "name": "TraceSurg - Open-Source Food Traceability & Precision Recall Engine",
+  "description": "FSMA Rule 204 & GS1 EPCIS 2.0 regulatory-grade precision recall engine with graph DAG lot genealogy, Clean-in-Place (CIP) sanitation boundary pruning, and 1-click FDA Electronic Sortable Spreadsheet export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
